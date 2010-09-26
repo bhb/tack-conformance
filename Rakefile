@@ -28,16 +28,17 @@ end
 def run_and_compare(project_dir, results)
   puts "--> Checking #{project_dir} ... "
   Dir.chdir(project_dir) do
-    config_file = 'tack-conf.yml'
-    config_hash = File.exists?(config_file) ? YAML::load_file('tack-conf.yml') : {}
+    config_file = 'tack-test.yml'
+    config_hash = File.exists?(config_file) ? YAML::load_file(config_file) : {}
     local_config = OpenStruct.new(config_hash)
     if local_config.skip
-      puts "Skipping #{project_dir} because:"
-      puts local_config.reason
+      puts "--> Skipping #{project_dir}"
+      puts "--> "+local_config.reason if local_config.reason
+      results[:skipped] << project_dir
       return
     else
       status, test_output, _ = run_tests(local_config)
-       status, tack_output, _ = run_tack(CONFIG)
+      status, tack_output, _ = run_tack(CONFIG)
       if !same_output?(test_output, tack_output)
         debugger
         results[:failure] << project_dir
