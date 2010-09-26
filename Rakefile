@@ -8,14 +8,19 @@ CONFIG = OpenStruct.new(YAML::load_file('config.yml'))
 
 task :default => [:run]
 
-desc 'Run tack against all Ruby projects under [project_dirs] directories'
+desc 'Compare Tack output and normal test output'
 task :run do
   results = {:success => [], :failure => [], :skipped => []}
   if ENV['TACK_PROJECT']
     run_and_compare(ENV['TACK_PROJECT'], results)
   else
-    CONFIG.project_dirs.each do |dir|
-      Pathname.new(dir).children.each do |file|
+    if CONFIG.projects
+      CONFIG.projects.each do |dir|
+        run_and_compare(CONFIG.projects_dir+dir, results)
+      end
+    else
+      # run all projects under projects_dir
+      Pathname.new(CONFIG.projects_dir).children.each do |file|
         next if !file.directory?
         run_and_compare(file, results)
       end
