@@ -1,0 +1,3 @@
+= Tack Conformance
+
+A library to test Tack against many Ruby projects.
