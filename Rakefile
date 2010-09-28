@@ -106,7 +106,7 @@ end
 def run_command_in_rvm(command)
   rvm_command = "source $HOME/.rvm/scripts/rvm;"
   if File.exists?('.rvmrc')
-    rvm_command += "source .rvmrc"
+    rvm_command += "source .rvmrc;"
   else
     rvm_command += "rvm use 1.8.7;"
   end
