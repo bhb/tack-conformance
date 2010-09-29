@@ -28,6 +28,13 @@ task :run do
   end
   puts "=== Summary ==="
   puts "#{results[:success].length} succeeded, #{results[:failure].length} failed, #{results[:skipped].length} skipped"
+  results[:failure].each do |result|
+    puts "FAILED: #{result}"
+  end
+  results[:skipped].each do |result|
+    puts "SKIPPED: #{result}"
+  end
+
 end
 
 def run_and_compare(project_dir, results)
@@ -45,7 +52,6 @@ def run_and_compare(project_dir, results)
       status, test_output, _ = run_tests(local_config)
       status, tack_output, _ = run_tack(CONFIG)
       if !same_output?(test_output, tack_output)
-        debugger
         results[:failure] << project_dir
       else
         results[:success] << project_dir
@@ -57,6 +63,7 @@ end
 def same_output?(expected_output, tack_output)
   same = true
   match = tack_output.match(/(\d+) tests, (\d+) failures, (\d+) pending/)
+  return false if match.nil?
   tack_tests, tack_failures, tack_pending = match[1..3].map(&:to_i)
   
   # TODO - refactor to be more clear depending on the test framework
