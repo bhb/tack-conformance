@@ -5,14 +5,15 @@ require 'pathname'
 require 'popen4'
 
 CONFIG = OpenStruct.new(YAML::load_file('config.yml'))
+VERBOSE = ENV['VERBOSE'] || false
 
 task :default => [:run]
 
 desc 'Compare Tack output and normal test output'
 task :run do
   results = {:success => [], :failure => [], :skipped => []}
-  if ENV['TACK_PROJECT']
-    run_and_compare(ENV['TACK_PROJECT'], results)
+  if ENV['PROJECT']
+    run_and_compare(ENV['PROJECT'], results)
   else
     if CONFIG.projects
       CONFIG.projects.each do |dir|
@@ -45,7 +46,7 @@ def run_and_compare(project_dir, results)
     local_config = OpenStruct.new(config_hash)
     if local_config.skip
       puts "--> Skipping #{project_dir}"
-      puts "--> "+local_config.reason if local_config.reason
+      puts "--> (#{local_config.reason})" if local_config.reason
       results[:skipped] << project_dir
       return
     else
@@ -87,15 +88,15 @@ def same_output?(expected_output, tack_output)
   
   if tack_tests != expected_tests
     same = false
-    puts "!!! Tack reported #{tack_tests} tests while Ruby reported #{expected_tests} !!!"
+    puts "!!! Tack reported #{tack_tests} tests while Ruby reported #{expected_tests} !!!" if VERBOSE
   end
   if tack_failures != expected_failures
     same = false
-    puts "!!! Tack reported #{tack_failures} failures while Ruby reported #{expected_failures} !!!"
+    puts "!!! Tack reported #{tack_failures} failures while Ruby reported #{expected_failures} !!!" if VERBOSE
   end
   if tack_pending != expected_pending
     same = false
-    puts "!!! Tack reported #{tack_pending} pending while Ruby reported #{expected_pending} !!!"
+    puts "!!! Tack reported #{tack_pending} pending while Ruby reported #{expected_pending} !!!" if VERBOSE
   end
   same
 end
@@ -119,11 +120,11 @@ def run_command_in_rvm(command)
   end
   rvm_command += command
   bash_command = "bash -c '#{rvm_command}'"
-  run_command(bash_command, true)
+  run_command(bash_command, VERBOSE)
 end
 
 def run_command(command, echo = false)
-  puts "Running : #{command}" if echo
+  puts "Running : #{command}" if echo 
   stdout = stderr = nil
   status = POpen4::popen4(command) do |out, err, _, _|
     stdout = out.read
@@ -131,11 +132,13 @@ def run_command(command, echo = false)
   end
   exit_status = status.exitstatus
   if exit_status != 0
-    puts "Command exited with status #{exit_status}"
-    puts "STDOUT: "
-    puts stdout
-    puts "STDERR: "
-    puts stderr
+    if echo
+      puts "Command exited with status #{exit_status}"
+      puts "STDOUT: "
+      puts stdout
+      puts "STDERR: "
+      puts stderr
+    end
   end
   [exit_status, stdout, stderr]
 end
