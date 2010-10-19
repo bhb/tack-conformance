@@ -38,6 +38,30 @@ task :run do
 
 end
 
+def check_adapter(config, results, project_dir)
+  if config.adapters
+    mapping = config.adapters
+    command = "#{CONFIG.tack_command} --adapters"
+    status, output = run_command_in_rvm(command)
+    if status != 0 
+      puts "Running command '#{command}' failed: "
+      puts output
+      results[:success].delete(project_dir)
+      results[:failure] << project_dir
+    else
+      mapping.each do |path, adapter|
+        pattern = %r{directory .*/?#{path} use .*#{adapter}}
+        unless output=~pattern
+          puts "--> The actual adapter did not match the expected adapter"
+          puts "\n\n#{output}\n\n does not match #{pattern})"
+          results[:success].delete(project_dir)
+          results[:failure] << project_dir
+        end
+      end
+    end
+  end
+end
+
 def run_and_compare(project_dir, results)
   puts "--> Checking #{project_dir} ... "
   Dir.chdir(project_dir) do
@@ -57,6 +81,7 @@ def run_and_compare(project_dir, results)
       else
         results[:success] << project_dir
       end
+      check_adapter(local_config, results, project_dir)
     end
   end
 end
