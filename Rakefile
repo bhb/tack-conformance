@@ -3,6 +3,7 @@ require 'pp'
 require 'ruby-debug'
 require 'pathname'
 require 'popen4'
+require 'forkoff'
 
 CONFIG = OpenStruct.new(YAML::load_file('config.yml'))
 VERBOSE = ENV['VERBOSE'] || false
@@ -11,28 +12,34 @@ task :default => [:run]
 
 desc 'Compare Tack output and normal test output'
 task :run do
-  results = {:success => [], :failure => [], :skipped => []}
+  results = []
   if ENV['PROJECT']
-    run_and_compare(ENV['PROJECT'], results)
+    results << run_and_compare(ENV['PROJECT'])
   else
     if CONFIG.projects
       CONFIG.projects.each do |dir|
-        run_and_compare(CONFIG.projects_dir+dir, results)
+        results << run_and_compare(CONFIG.projects_dir+dir)
       end
     else
       # run all projects under projects_dir
       Pathname.new(CONFIG.projects_dir).children.each do |file|
         next if !file.directory?
-        run_and_compare(file, results)
+        results << run_and_compare(file)
       end
     end
   end
+  total_results = {:success => [], :failure => [], :skipped => []}
+  results.each do |result_hash|
+    result_hash.each do |key, value|
+      total_results[key] += value
+    end
+  end
   puts "=== Summary ==="
-  puts "#{results[:success].length} succeeded, #{results[:failure].length} failed, #{results[:skipped].length} skipped"
-  results[:failure].each do |result|
+  puts "#{total_results[:success].length} succeeded, #{total_results[:failure].length} failed, #{total_results[:skipped].length} skipped"
+  total_results[:failure].each do |result|
     puts "FAILED: #{result}"
   end
-  results[:skipped].each do |result|
+  total_results[:skipped].each do |result|
     puts "SKIPPED: #{result}"
   end
 
@@ -62,7 +69,8 @@ def check_adapter(config, results, project_dir)
   end
 end
 
-def run_and_compare(project_dir, results)
+def run_and_compare(project_dir)
+  results = {:success => [], :failure => [], :skipped => []}
   puts "--> Checking #{project_dir} ... "
   Dir.chdir(project_dir) do
     config_file = 'tack-test.yml'
@@ -72,7 +80,7 @@ def run_and_compare(project_dir, results)
       puts "--> Skipping #{project_dir}"
       puts "--> (#{local_config.reason})" if local_config.reason
       results[:skipped] << project_dir
-      return
+      return results
     else
       status, test_output, _ = run_tests(local_config)
       status, tack_output, _ = run_tack(CONFIG)
@@ -84,6 +92,7 @@ def run_and_compare(project_dir, results)
       check_adapter(local_config, results, project_dir)
     end
   end
+  results
 end
 
 def same_output?(expected_output, tack_output)
