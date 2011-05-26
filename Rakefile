@@ -17,8 +17,8 @@ task :run do
     results << run_and_compare(ENV['PROJECT'])
   else
     if CONFIG.projects
-      CONFIG.projects.each do |dir|
-        results << run_and_compare(CONFIG.projects_dir+dir)
+      results = CONFIG.projects.forkoff!(:processes => 8) do |dir|
+        run_and_compare(CONFIG.projects_dir+dir)
       end
     else
       # run all projects under projects_dir
