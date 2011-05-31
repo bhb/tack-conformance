@@ -7,6 +7,7 @@ require 'forkoff'
 
 CONFIG = OpenStruct.new(YAML::load_file('config.yml'))
 VERBOSE = ENV['VERBOSE'] || false
+PARALLEL = ENV['PARALLEL'] || false
 
 task :default => [:run]
 
@@ -17,8 +18,14 @@ task :run do
     results << run_and_compare(ENV['PROJECT'])
   else
     if CONFIG.projects
-      results = CONFIG.projects.forkoff!(:processes => 8) do |dir|
-        run_and_compare(CONFIG.projects_dir+dir)
+      if PARALLEL
+        results = CONFIG.projects.forkoff!(:processes => 8) do |dir|
+          run_and_compare(CONFIG.projects_dir+dir)
+        end
+      else
+        results = CONFIG.projects.map do |dir|
+          run_and_compare(CONFIG.projects_dir+dir)
+        end
       end
     else
       # run all projects under projects_dir
@@ -30,6 +37,7 @@ task :run do
   end
   total_results = {:success => [], :failure => [], :skipped => []}
   results.each do |result_hash|
+    raise result_hash if result_hash.is_a?(Exception)
     result_hash.each do |key, value|
       total_results[key] += value
     end
